@@ -1,18 +1,20 @@
 package sebroar.populationcalculator.data;
 
+import java.util.ArrayList;
+
 public class PopulationGroup {
 	private final Location location;
 	private final Culture culture;
-	private final Language language;
+	private final ArrayList<Language> languages;
 	private final Religion religion;
 	private final Species species;
 	private long size;
 	
-	public PopulationGroup(Location location, Culture culture, Language language, 
+	public PopulationGroup(Location location, Culture culture, ArrayList<Language> languages, 
 			Religion religion, Species species, long size) {
 		this.location = location;
 		this.culture = culture;
-		this.language = language;
+		this.languages = languages;
 		this.religion = religion;
 		this.species = species;
 		this.setSize(size);
@@ -26,8 +28,8 @@ public class PopulationGroup {
 		return culture;
 	}
 	
-	public Language getLanguage() {
-		return language;
+	public ArrayList<Language> getLanguages() {
+		return languages;
 	}
 	
 	public Religion getReligion() {

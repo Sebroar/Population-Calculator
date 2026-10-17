@@ -39,10 +39,10 @@ public class Location {
 		}
 	}
 	
-	public PopulationGroup findPopulationGroup(Culture culture, Language language, 
+	public PopulationGroup findPopulationGroup(Culture culture, ArrayList<Language> languages, 
 			Religion religion, Species species) {
 		for (PopulationGroup p : population) {
-			if (p.getCulture() == culture && p.getLanguage() == language
+			if (p.getCulture() == culture && p.getLanguages() == languages
 					&& p.getReligion() == religion && p.getSpecies() == species) {
 				return p;
 			}
@@ -50,11 +50,11 @@ public class Location {
 		return null;
 	}
 	
-	public void addPopulationGroup(Culture culture, Language language, 
+	public void addPopulationGroup(Culture culture, ArrayList<Language> languages, 
 			Religion religion, Species species, long size) {
-		PopulationGroup pop = findPopulationGroup(culture, language, religion, species);
+		PopulationGroup pop = findPopulationGroup(culture, languages, religion, species);
 		if (pop == null) {
-			population.add(new PopulationGroup(this, culture, language, religion, species, size));
+			population.add(new PopulationGroup(this, culture, languages, religion, species, size));
 		} else {
 			pop.changeSize(size);
 		}
@@ -69,7 +69,7 @@ public class Location {
 			if (pByCul.containsKey(c)) {
 				pByCul.get(c).add(p);
 			} else {
-				pByCul.put(c, new ArrayList<PopulationGroup>());
+				pByCul.put(c, new ArrayList<PopulationGroup>(0));
 				pByCul.get(c).add(p);
 			}
 		}
@@ -102,7 +102,7 @@ public class Location {
 				long change = Math.min(p.getSize(),
 						(long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
-				addPopulationGroup(mainCul, p.getLanguage(),
+				addPopulationGroup(mainCul, p.getLanguages(),
 						p.getReligion(), p.getSpecies(), change);
 			}
 		}
@@ -118,7 +118,7 @@ public class Location {
 			if (pByRel.containsKey(r)) {
 				pByRel.get(r).add(p);
 			} else {
-				pByRel.put(r, new ArrayList<PopulationGroup>());
+				pByRel.put(r, new ArrayList<PopulationGroup>(0));
 				pByRel.get(r).add(p);
 			}
 		}
@@ -149,7 +149,7 @@ public class Location {
 				long change = Math.min(p.getSize(),
 						(long) Math.ceil(p.getSize() * rate / rEffPow));
 				p.changeSize(-change);
-				addPopulationGroup(p.getCulture(), p.getLanguage(),
+				addPopulationGroup(p.getCulture(), p.getLanguages(),
 						p.getReligion(), p.getSpecies(), change);
 			}
 		}
@@ -162,20 +162,22 @@ public class Location {
 		var pByLang = new TreeMap<Language, ArrayList<PopulationGroup>>(
 				(a, b) -> a.name().compareTo(b.name()));
 		for (var p : population) {
-			var c = p.getLanguage();
-			if (pByLang.containsKey(c)) {
-				pByLang.get(c).add(p);
-			} else {
-				pByLang.put(c, new ArrayList<PopulationGroup>());
-				pByLang.get(c).add(p);
+			var popLangs = p.getLanguages();
+			for (Language l : popLangs) {
+				if (pByLang.containsKey(l)) {
+					pByLang.get(l).add(p);
+				} else {
+					pByLang.put(l, new ArrayList<PopulationGroup>(0));
+					pByLang.get(l).add(p);
+				} 
 			}
 		}
 		ArrayList<Language> langs = new ArrayList<Language>(0);
 		var langPop = new long[pByLang.size()];
 		langs.addAll(pByLang.keySet());
-		for (var c : langs) {
-			for (var p : pByLang.get(c)) {
-				langPop[langs.indexOf(c)] = p.getSize();
+		for (var l : langs) {
+			for (var p : pByLang.get(l)) {
+				langPop[langs.indexOf(l)] = p.getSize();
 			}
 		}
 		var langEffPow = new double[pByLang.size()];
@@ -194,13 +196,21 @@ public class Location {
 		var mainLang = langByEffPow.get(0);
 		var mainLangEffPow = langEffPow[langs.indexOf(mainLang)];
 		for (var p : population) {
-			var cEffPow = langEffPow[langs.indexOf(p.getLanguage())];
-			if (p.getLanguage() != mainLang && cEffPow < mainLangEffPow) {
-				long change = Math.min(p.getSize(),
-						(long) Math.ceil(p.getSize() * rate / cEffPow));
-				p.changeSize(-change);
-				addPopulationGroup(p.getCulture(), mainLang,
-						p.getReligion(), p.getSpecies(), change);
+			var popLangs = p.getLanguages();
+			if (!popLangs.contains(mainLang)) {
+				double cEffPow = 0;
+				for (Language l : popLangs) {
+					cEffPow = Math.max(langEffPow[langs.indexOf(l)], cEffPow);
+				}
+				if (!p.getLanguages().contains(mainLang) && cEffPow < mainLangEffPow) {
+					long change = Math.min(p.getSize(),
+							(long) Math.ceil(p.getSize() * rate / cEffPow));
+					p.changeSize(-change);
+					ArrayList<Language> newLangs = p.getLanguages();
+					newLangs.add(mainLang);
+					addPopulationGroup(p.getCulture(), newLangs,
+							p.getReligion(), p.getSpecies(), change);
+				} 
 			}
 		}
 		population.removeIf(p -> p.getSize() < 1);

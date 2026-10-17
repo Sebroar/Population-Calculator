@@ -8,7 +8,6 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 import javax.swing.filechooser.FileSystemView;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
@@ -183,10 +182,15 @@ public class PopulationCalculator {
 		for (Location l : locations) {
 			if (l.population.size() > 0) {
 				for (PopulationGroup pop : l.population) {
-					out.println(l.getName() + "," + pop.getCulture().name()
-							+ "," + pop.getReligion().name() + ","
-							+ pop.getLanguage().name() + ","
-							+ pop.getSpecies().name() + "," + pop.getSize());
+					ArrayList<Language> langs = pop.getLanguages();
+					String langNames = "";
+					for (int i = 0; i < langs.size(); i++) {
+						langNames = i > 0 ? langNames + "," + langs.get(i).name() : langNames + langs.get(i).name();
+					}
+					out.println(l.getName() + "\",\"" + pop.getCulture().name()
+							+ "\",\"" + pop.getReligion().name() + "\",\""
+							+ langNames + "\",\""
+							+ pop.getSpecies().name() + "\",\"" + pop.getSize());
 				} 
 			}
 		}
@@ -364,7 +368,7 @@ public class PopulationCalculator {
 					Location loc = Location.NULL_LOCATION;
 					Culture cul = Culture.NULL_CULTURE;
 					Religion rel = Religion.NULL_RELIGION;
-					Language lang = Language.NULL_LANGUAGE;
+					ArrayList<Language> lang = new ArrayList<Language>(0);
 					Species sp = Species.NULL_SPECIES;
 					long size = pop.get("size").asLong();
 					for (Location location: locations) {
@@ -385,12 +389,17 @@ public class PopulationCalculator {
 							break;
 						}
 					}
-					for (Language language: languages) {
-						if (pop.get("language").asText().equals(language.name())) {
-							lang = language;
-							break;
+					JsonNode langNode = pop.get("Language");
+					if (langNode.getNodeType() == JsonNodeType.ARRAY) {
+						for (JsonNode l : langNode) {
+							for (Language language : languages) {
+								if (l.asText() == language.name()) {
+									lang.add(language);
+								}
+							}
 						}
 					}
+					if (lang.size() == 0) lang.add(Language.NULL_LANGUAGE);
 					for (Species spValue: species) {
 						if (pop.get("species").asText().equals(spValue.name())) {
 							sp = spValue;
