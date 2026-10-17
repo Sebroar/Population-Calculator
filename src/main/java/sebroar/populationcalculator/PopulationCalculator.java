@@ -145,7 +145,6 @@ public class PopulationCalculator {
 				l.assimilatePopulation(assimilationRate, primaryCultures, primaryCulturePowerMultiplier);
 				l.convertPopulation(conversionRate, stateReligions, stateReligionPowerMultiplier);
 				l.spreadMainLanguage(languageShiftRate, officialLanguages, officialLanguagePowerMultiplier);
-				// TODO assimilation etc. logic
 				printLog(LogEntryType.INFO, "Timestep " + t + " was completed");
 			}
 			t++;
@@ -407,9 +406,9 @@ public class PopulationCalculator {
 		var cfg = new File(dir, "config.json");
 		growthRate = mapper.readTree(cfg).get("global_growth_rate").asDouble() / 100;
 		timesteps = mapper.readTree(cfg).get("timesteps").asLong();
-		JsonNode arrayNode = mapper.readTree(cfg).get("primary_cultures");
-		if (arrayNode.isArray()) {
-			for (JsonNode pc : arrayNode) {
+		JsonNode pcNode = mapper.readTree(cfg).get("primary_cultures");
+		if (pcNode.isArray()) {
+			for (JsonNode pc : pcNode) {
 				for (Culture c : cultures) {
 					if (c.name() == pc.asText()) {
 						primaryCultures.add(c);
@@ -420,6 +419,30 @@ public class PopulationCalculator {
 		}
 		primaryCulturePowerMultiplier = mapper.readTree(cfg).get("primary_culture_power_multiplier").asDouble();
 		conversionRate = mapper.readTree(cfg).get("conversion_rate").asDouble() / 100;
+		JsonNode srNode = mapper.readTree(cfg).get("state_religions");
+		if (srNode.isArray()) {
+			for (JsonNode sr : srNode) {
+				for (Religion r : religions) {
+					if (r.name() == sr.asText()) {
+						stateReligions.add(r);
+					}
+				}
+			}
+			stateReligions.sort((a, b) -> {return a.name().compareTo(b.name());});
+		}
+		stateReligionPowerMultiplier = mapper.readTree(cfg).get("state_religion_power_multiplier").asDouble();
+		JsonNode olNode = mapper.readTree(cfg).get("primary_cultures");
+		if (olNode.isArray()) {
+			for (JsonNode ol : olNode) {
+				for (Language l : languages) {
+					if (l.name() == ol.asText()) {
+						officialLanguages.add(l);
+					}
+				}
+			}
+			officialLanguages.sort((a, b) -> {return a.name().compareTo(b.name());});
+		}
+		primaryCulturePowerMultiplier = mapper.readTree(cfg).get("primary_culture_power_multiplier").asDouble();
 		assimilationRate = mapper.readTree(cfg).get("assimilation_rate").asDouble() / 100;
 		languageShiftRate = mapper.readTree(cfg).get("language_shift_rate").asDouble() / 100;
 		printLog(LogEntryType.INFO, "config.json was loaded successfully");
