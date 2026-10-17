@@ -24,15 +24,21 @@ public class PopulationCalculator {
 	public static File log;
 	public static PrintStream logger;
 	public static ArrayList<Culture> cultures = new ArrayList<Culture>(0);
+	public static ArrayList<Culture> primaryCultures = new ArrayList<Culture>(0);
 	public static ArrayList<Language> languages = new ArrayList<Language>(0);
+	public static ArrayList<Language> officialLanguages = new ArrayList<Language>(0);
 	public static ArrayList<Religion> religions = new ArrayList<Religion>(0);
+	public static ArrayList<Religion> stateReligions = new ArrayList<Religion>(0);
 	public static ArrayList<Species> species = new ArrayList<Species>(0);
 	public static ArrayList<Location> locations = new ArrayList<Location>(0);
 	public static double growthRate;
 	public static long timesteps;
 	public static double conversionRate;
+	public static double stateReligionPowerMultiplier;
 	public static double assimilationRate;
+	public static double primaryCulturePowerMultiplier;
 	public static double languageShiftRate;
+	public static double officialLanguagePowerMultiplier;
 	static ObjectMapper mapper = JsonMapper.builder().configure(JsonReadFeature.ALLOW_JAVA_COMMENTS, true)
 			.configure(JsonReadFeature.ALLOW_SINGLE_QUOTES, true)
 			.configure(JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES, true)
@@ -40,13 +46,16 @@ public class PopulationCalculator {
 			.build();
 	
 	public static void main(String[] args) {
+		// Initial 
 		String defaultDirectory = FileSystemView.getFileSystemView().getDefaultDirectory().toString();
 		String separator = File.separator;
-		Scanner sc = new Scanner(System.in);
 		CommandLineParser clp = new CommandLineParser(args);
+		
+		// Get working directory
 		if (clp.getArgumentNames().contains("d")) {
 			dir = new File(clp.getArgumentValue("d")[0]);
 		} else {
+			Scanner sc = new Scanner(System.in);
 			System.out.print("""
 					No path to a directory for file storage has been specified.
 					Do you wish to specify one now? (y/n)
@@ -83,11 +92,15 @@ public class PopulationCalculator {
 						"The program will create a new folder in the default directory ("
 								+ defaultDirectory + ")");
 			}
+			sc.close();
 		}
-		sc.close();
+		
+		// Create the working directory if it doesn't exist yet, and create log file
 		dir.mkdirs();
 		log = new File(dir, "logs" + separator + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss")) + ".log");
 		log.mkdirs();
+		
+		// No log file = bad = stop the program
 		try {
 			log.createNewFile();
 			logger = new PrintStream(log);
@@ -101,9 +114,18 @@ public class PopulationCalculator {
 			printLog(LogEntryType.INFO, "The program will now generate example files");
 			// TODO Generate example files
 			printLog(LogEntryType.INFO, "Example files generated, the program will now terminate");
-			sc.close();
 			return;
 		}
+		
+		// Load user-defined data
+		loadLocations();
+		loadLanguages();
+		loadReligions();
+		loadSpecies();
+		loadCultures();
+		loadPopulation();
+		
+		// Load config file
 		try {
 			loadConfig();
 		} catch (IOException e) {
@@ -114,25 +136,22 @@ public class PopulationCalculator {
 			e.printStackTrace(logger);
 			return;
 		}
-		loadLocations();
-		loadLanguages();
-		loadReligions();
-		loadSpecies();
-		loadCultures();
-		loadPopulation();
+		
+		// Finally do the simulation
 		long t = 0;
 		while (t < timesteps) {
 			for (Location l : locations) {
 				l.growPopulation(growthRate);
+				l.assimilatePopulation(assimilationRate, primaryCultures, primaryCulturePowerMultiplier);
+				l.convertPopulation(conversionRate, stateReligions, stateReligionPowerMultiplier);
+				l.spreadMainLanguage(languageShiftRate, officialLanguages, officialLanguagePowerMultiplier);
 				// TODO assimilation etc. logic
-//				List<PopulationGroup> pop;
-//				for (Culture c : cultures) {
-//					l.population.stream().filter(p -> p.getCulture() == c);
-//				}
 				printLog(LogEntryType.INFO, "Timestep " + t + " was completed");
 			}
 			t++;
 		}
+		
+		// Output result
 		printLog(LogEntryType.INFO, "Creating output file");
 		File output = new File(dir, "output.csv");
 		PrintStream out;
@@ -385,11 +404,24 @@ public class PopulationCalculator {
 	}
 	
 	public static void loadConfig() throws IOException {
-		growthRate = mapper.readTree(new File(dir, "config.json")).get("global_growth_rate").asDouble() / 100;
-		timesteps = mapper.readTree(new File(dir, "config.json")).get("timesteps").asLong();
-		conversionRate = mapper.readTree(new File(dir, "config.json")).get("conversion_rate").asDouble() / 100;
-		assimilationRate = mapper.readTree(new File(dir, "config.json")).get("assimilation_rate").asDouble() / 100;
-		languageShiftRate = mapper.readTree(new File(dir, "config.json")).get("language_shift_rate").asDouble() / 100;
+		var cfg = new File(dir, "config.json");
+		growthRate = mapper.readTree(cfg).get("global_growth_rate").asDouble() / 100;
+		timesteps = mapper.readTree(cfg).get("timesteps").asLong();
+		JsonNode arrayNode = mapper.readTree(cfg).get("primary_cultures");
+		if (arrayNode.isArray()) {
+			for (JsonNode pc : arrayNode) {
+				for (Culture c : cultures) {
+					if (c.name() == pc.asText()) {
+						primaryCultures.add(c);
+					}
+				}
+			}
+			primaryCultures.sort((a, b) -> {return a.name().compareTo(b.name());});
+		}
+		primaryCulturePowerMultiplier = mapper.readTree(cfg).get("primary_culture_power_multiplier").asDouble();
+		conversionRate = mapper.readTree(cfg).get("conversion_rate").asDouble() / 100;
+		assimilationRate = mapper.readTree(cfg).get("assimilation_rate").asDouble() / 100;
+		languageShiftRate = mapper.readTree(cfg).get("language_shift_rate").asDouble() / 100;
 		printLog(LogEntryType.INFO, "config.json was loaded successfully");
 	}
 	
