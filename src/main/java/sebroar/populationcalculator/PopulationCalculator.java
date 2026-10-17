@@ -98,7 +98,7 @@ public class PopulationCalculator {
 		// Create the working directory if it doesn't exist yet, and create log file
 		dir.mkdirs();
 		log = new File(dir, "logs" + separator + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss")) + ".log");
-		log.mkdirs();
+		log.getParentFile().mkdirs();
 		
 		// No log file = bad = stop the program
 		try {
@@ -119,10 +119,15 @@ public class PopulationCalculator {
 		
 		// Load user-defined data
 		loadLocations();
+		printLog(LogEntryType.INFO, "Loaded " + locations.size() + " locations");
 		loadLanguages();
+		printLog(LogEntryType.INFO, "Loaded " + languages.size() + " languages");
 		loadReligions();
+		printLog(LogEntryType.INFO, "Loaded " + religions.size() + " religions");
 		loadSpecies();
+		printLog(LogEntryType.INFO, "Loaded " + species.size() + " species");
 		loadCultures();
+		printLog(LogEntryType.INFO, "Loaded " + cultures.size() + " cultures");
 		loadPopulation();
 		
 		// Load config file
@@ -141,12 +146,13 @@ public class PopulationCalculator {
 		long t = 0;
 		while (t < timesteps) {
 			for (Location l : locations) {
+				printLog(LogEntryType.INFO, "Processing " + l.getName());
 				l.growPopulation(growthRate);
 				l.assimilatePopulation(assimilationRate, primaryCultures, primaryCulturePowerMultiplier);
 				l.convertPopulation(conversionRate, stateReligions, stateReligionPowerMultiplier);
 				l.spreadMainLanguage(languageShiftRate, officialLanguages, officialLanguagePowerMultiplier);
-				printLog(LogEntryType.INFO, "Timestep " + t + " was completed");
 			}
+			printLog(LogEntryType.INFO, "Timestep " + t + " was completed");
 			t++;
 		}
 		
@@ -288,7 +294,7 @@ public class PopulationCalculator {
 	}
 	
 	private static void loadLocations() {
-		locations.add(Location.NULL_LOCATION);
+		//locations.add(Location.NULL_LOCATION);
 		try {
 			JsonNode arrayNode = mapper.readTree(new File(dir, "locations.json")).get("locations");
 			if (arrayNode.isArray()) {
@@ -325,7 +331,7 @@ public class PopulationCalculator {
 							sp.get("growth_rate_modifier_additive").asDouble() : 0;
 					double mult = sp.has("growth_rate_modifier_multiplicative") ?
 							sp.get("growth_rate_modifier_multiplicative").asDouble() : 0;
-					locations.add(new Location(sp.get("name").asText(), add, mult));
+					species.add(new Species(sp.get("name").asText(), add, mult));
 				}
 				species.sort((a, b) -> {return a.name().compareTo(b.name());});
 				printLog(LogEntryType.INFO, "species.json was loaded successfully");
@@ -418,7 +424,7 @@ public class PopulationCalculator {
 			primaryCultures.sort((a, b) -> {return a.name().compareTo(b.name());});
 		}
 		primaryCulturePowerMultiplier = mapper.readTree(cfg).get("primary_culture_power_multiplier").asDouble();
-		conversionRate = mapper.readTree(cfg).get("conversion_rate").asDouble() / 100;
+		conversionRate = mapper.readTree(cfg).get("base_conversion_rate").asDouble() / 100;
 		JsonNode srNode = mapper.readTree(cfg).get("state_religions");
 		if (srNode.isArray()) {
 			for (JsonNode sr : srNode) {
@@ -443,14 +449,14 @@ public class PopulationCalculator {
 			officialLanguages.sort((a, b) -> {return a.name().compareTo(b.name());});
 		}
 		primaryCulturePowerMultiplier = mapper.readTree(cfg).get("primary_culture_power_multiplier").asDouble();
-		assimilationRate = mapper.readTree(cfg).get("assimilation_rate").asDouble() / 100;
-		languageShiftRate = mapper.readTree(cfg).get("language_shift_rate").asDouble() / 100;
+		assimilationRate = mapper.readTree(cfg).get("base_assimilation_rate").asDouble() / 100;
+		languageShiftRate = mapper.readTree(cfg).get("base_language_shift_rate").asDouble() / 100;
 		printLog(LogEntryType.INFO, "config.json was loaded successfully");
 	}
 	
 	public static void printLog(LogEntryType t, String e) {
 		System.out.println(e);
-		logger.println("[ " + t + " " 
+		logger.println("[" + t + " " 
 				+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "] " + e);
 	}
 	

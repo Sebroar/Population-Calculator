@@ -1,7 +1,6 @@
 package sebroar.populationcalculator.data;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -73,26 +72,26 @@ public class Location {
 				pByCul.get(c).add(p);
 			}
 		}
-		var culs = new Culture[pByCul.size()];
+		ArrayList<Culture> culs = new ArrayList<Culture>(0);
 		var culPop = new long[pByCul.size()];
-		pByCul.keySet().toArray(culs);
+		culs.addAll(pByCul.keySet());
 		for (Culture c : culs) {
 			for (var p : pByCul.get(c)) {
-				culPop[Arrays.asList(culs).indexOf(c)] = p.getSize();
+				culPop[culs.indexOf(c)] = p.getSize();
 			}
 		}
 		var culEffPow = new double[pByCul.size()];
-		var culByEffPow = Arrays.asList(culs);
+		var culByEffPow = new ArrayList<Culture>(0);
+		culByEffPow.addAll(culs);
 		for (int i = 0; i < culEffPow.length; i++) {
-			double mult = primaryCultures.contains(culs[i]) ? pcMult : 1;
-			culEffPow[i] = culPop[i] * culs[i].culturePower() * mult / totalPopulation;
+			double mult = primaryCultures.contains(culs.get(i)) ? pcMult : 1;
+			culEffPow[i] = culPop[i] * culs.get(i).culturePower() * mult / totalPopulation;
 		}
-		culByEffPow.sort((a, b) -> Double.compare(culEffPow[Arrays.asList(culs).indexOf(a)], 
-						culEffPow[Arrays.asList(culs).indexOf(b)]));
-		var mainCul = culByEffPow.getFirst();
-		var mainCulEffPow = culEffPow[Arrays.asList(culs).indexOf(mainCul)];
+		culByEffPow.sort((a, b) -> Double.compare(culEffPow[culs.indexOf(a)], culEffPow[culs.indexOf(b)]));
+		var mainCul = culByEffPow.get(0);
+		var mainCulEffPow = culEffPow[culs.indexOf(mainCul)];
 		for (var p : population) {
-			var cEffPow = culEffPow[Arrays.asList(culs).indexOf(p.getCulture())];
+			var cEffPow = culEffPow[culs.indexOf(p.getCulture())];
 			if (p.getCulture() != mainCul && cEffPow < mainCulEffPow) {
 				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
@@ -116,26 +115,27 @@ public class Location {
 				pByRel.get(r).add(p);
 			}
 		}
-		var Rels = new Religion[pByRel.size()];
+		ArrayList<Religion> rels = new ArrayList<Religion>(0);
 		var RelPop = new long[pByRel.size()];
-		pByRel.keySet().toArray(Rels);
-		for (var r : Rels) {
+		rels.addAll(pByRel.keySet());
+		for (var r : rels) {
 			for (var p : pByRel.get(r)) {
-				RelPop[Arrays.asList(Rels).indexOf(r)] = p.getSize();
+				RelPop[rels.indexOf(r)] = p.getSize();
 			}
 		}
 		var relEffPow = new double[pByRel.size()];
-		var RelByEffPow = Arrays.asList(Rels);
+		var relByEffPow = new ArrayList<Religion>(0);
+		relByEffPow.addAll(rels);
 		for (int i = 0; i < relEffPow.length; i++) {
-			double mult = stateReligion.contains(Rels[i]) ? srMult : 1;
-			relEffPow[i] = RelPop[i] * Rels[i].religionPower() * mult / totalPopulation;
+			double mult = stateReligion.contains(rels.get(i)) ? srMult : 1;
+			relEffPow[i] = RelPop[i] * rels.get(i).religionPower() * mult / totalPopulation;
 		}
-		RelByEffPow.sort((a, b) -> Double.compare(relEffPow[Arrays.asList(Rels).indexOf(a)], 
-						relEffPow[Arrays.asList(Rels).indexOf(b)]));
-		var mainRel = RelByEffPow.getFirst();
-		var mainRelEffPow = relEffPow[Arrays.asList(Rels).indexOf(mainRel)];
+		relByEffPow.sort((a, b) -> Double.compare(relEffPow[rels.indexOf(a)], 
+						relEffPow[rels.indexOf(b)]));
+		var mainRel = relByEffPow.get(0);
+		var mainRelEffPow = relEffPow[rels.indexOf(mainRel)];
 		for (var p : population) {
-			var rEffPow = relEffPow[Arrays.asList(Rels).indexOf(p.getReligion())];
+			var rEffPow = relEffPow[rels.indexOf(p.getReligion())];
 			if (p.getReligion() != mainRel && rEffPow < mainRelEffPow) {
 				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / rEffPow));
 				p.changeSize(-change);
@@ -159,26 +159,27 @@ public class Location {
 				pByLang.get(c).add(p);
 			}
 		}
-		var langs = new Language[pByLang.size()];
+		ArrayList<Language> langs = new ArrayList<Language>(0);
 		var langPop = new long[pByLang.size()];
-		pByLang.keySet().toArray(langs);
+		langs.addAll(pByLang.keySet());
 		for (var c : langs) {
 			for (var p : pByLang.get(c)) {
-				langPop[Arrays.asList(langs).indexOf(c)] = p.getSize();
+				langPop[langs.indexOf(c)] = p.getSize();
 			}
 		}
 		var langEffPow = new double[pByLang.size()];
-		var langByEffPow = Arrays.asList(langs);
+		var langByEffPow = new ArrayList<Language>(0);
+		langByEffPow.addAll(langs);
 		for (int i = 0; i < langEffPow.length; i++) {
-			double mult = officialLanguage.contains(langs[i]) ? olMult : 1;
-			langEffPow[i] = langPop[i] * langs[i].languagePower() * mult / totalPopulation;
+			double mult = officialLanguage.contains(langs.get(i)) ? olMult : 1;
+			langEffPow[i] = langPop[i] * langs.get(i).languagePower() * mult / totalPopulation;
 		}
-		langByEffPow.sort((a, b) -> Double.compare(langEffPow[Arrays.asList(langs).indexOf(a)], 
-						langEffPow[Arrays.asList(langs).indexOf(b)]));
-		var mainLang = langByEffPow.getFirst();
-		var mainLangEffPow = langEffPow[Arrays.asList(langs).indexOf(mainLang)];
+		langByEffPow.sort((a, b) -> Double.compare(langEffPow[langs.indexOf(a)], 
+						langEffPow[langs.indexOf(b)]));
+		var mainLang = langByEffPow.get(0);
+		var mainLangEffPow = langEffPow[langs.indexOf(mainLang)];
 		for (var p : population) {
-			var cEffPow = langEffPow[Arrays.asList(langs).indexOf(p.getLanguage())];
+			var cEffPow = langEffPow[langs.indexOf(p.getLanguage())];
 			if (p.getLanguage() != mainLang && cEffPow < mainLangEffPow) {
 				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
