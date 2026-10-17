@@ -146,11 +146,16 @@ public class PopulationCalculator {
 		long t = 0;
 		while (t < timesteps) {
 			for (Location l : locations) {
-				printLog(LogEntryType.INFO, "Processing " + l.getName());
-				l.growPopulation(growthRate);
-				l.assimilatePopulation(assimilationRate, primaryCultures, primaryCulturePowerMultiplier);
-				l.convertPopulation(conversionRate, stateReligions, stateReligionPowerMultiplier);
-				l.spreadMainLanguage(languageShiftRate, officialLanguages, officialLanguagePowerMultiplier);
+				if (l.population.size() > 0) {
+					printLog(LogEntryType.INFO, "Processing " + l.getName());
+					l.growPopulation(growthRate);
+					l.assimilatePopulation(assimilationRate, primaryCultures,
+							primaryCulturePowerMultiplier);
+					l.convertPopulation(conversionRate, stateReligions,
+							stateReligionPowerMultiplier);
+					l.spreadMainLanguage(languageShiftRate, officialLanguages,
+							officialLanguagePowerMultiplier);
+				}
 			}
 			printLog(LogEntryType.INFO, "Timestep " + t + " was completed");
 			t++;
@@ -176,12 +181,13 @@ public class PopulationCalculator {
 		printLog(LogEntryType.INFO, "Printing output to output.csv");
 		out.println("Location,Culture,Religion,Language,Species,Size");
 		for (Location l : locations) {
-			for (PopulationGroup pop : l.population) {
-				out.println(
-						l.getName() + "," + pop.getCulture().name() + ","
-						+ pop.getReligion().name() + "," + pop.getLanguage().name() + ","
-						+ pop.getSpecies().name() + "," + pop.getSize()
-				);
+			if (l.population.size() > 0) {
+				for (PopulationGroup pop : l.population) {
+					out.println(l.getName() + "," + pop.getCulture().name()
+							+ "," + pop.getReligion().name() + ","
+							+ pop.getLanguage().name() + ","
+							+ pop.getSpecies().name() + "," + pop.getSize());
+				} 
 			}
 		}
 		out.close();
@@ -294,7 +300,7 @@ public class PopulationCalculator {
 	}
 	
 	private static void loadLocations() {
-		//locations.add(Location.NULL_LOCATION);
+		locations.add(Location.NULL_LOCATION);
 		try {
 			JsonNode arrayNode = mapper.readTree(new File(dir, "locations.json")).get("locations");
 			if (arrayNode.isArray()) {

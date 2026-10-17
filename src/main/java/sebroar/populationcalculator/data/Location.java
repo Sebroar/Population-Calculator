@@ -62,7 +62,8 @@ public class Location {
 	
 	public void assimilatePopulation(double rate, List<Culture> primaryCultures, double pcMult) {
 		var totalPopulation = getTotalPopulation();
-		var pByCul = new TreeMap<Culture, ArrayList<PopulationGroup>>((a, b) -> a.name().compareTo(b.name()));
+		var pByCul = new TreeMap<Culture, ArrayList<PopulationGroup>>(
+				(a, b) -> a.name().compareTo(b.name()));
 		for (var p : population) {
 			Culture c = p.getCulture();
 			if (pByCul.containsKey(c)) {
@@ -84,18 +85,25 @@ public class Location {
 		var culByEffPow = new ArrayList<Culture>(0);
 		culByEffPow.addAll(culs);
 		for (int i = 0; i < culEffPow.length; i++) {
-			double mult = primaryCultures.contains(culs.get(i)) ? pcMult : 1;
-			culEffPow[i] = culPop[i] * culs.get(i).culturePower() * mult / totalPopulation;
+			double mult = primaryCultures.contains(culs.get(i))
+					? pcMult
+					: 1;
+			culEffPow[i] = culPop[i] * culs.get(i).culturePower() * mult
+					/ totalPopulation;
 		}
-		culByEffPow.sort((a, b) -> -1 * Double.compare(culEffPow[culs.indexOf(a)], culEffPow[culs.indexOf(b)]));
+		culByEffPow.sort(
+				(a, b) -> -1 * Double.compare(culEffPow[culs.indexOf(a)],
+						culEffPow[culs.indexOf(b)]));
 		var mainCul = culByEffPow.get(0);
 		var mainCulEffPow = culEffPow[culs.indexOf(mainCul)];
 		for (var p : population) {
 			var cEffPow = culEffPow[culs.indexOf(p.getCulture())];
 			if (p.getCulture() != mainCul && cEffPow < mainCulEffPow) {
-				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / cEffPow));
+				long change = Math.min(p.getSize(),
+						(long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
-				addPopulationGroup(mainCul, p.getLanguage(), p.getReligion(), p.getSpecies(), change);
+				addPopulationGroup(mainCul, p.getLanguage(),
+						p.getReligion(), p.getSpecies(), change);
 			}
 		}
 		population.removeIf(p -> p.getSize() < 1);
@@ -103,7 +111,8 @@ public class Location {
 	
 	public void convertPopulation(double rate, List<Religion> stateReligion, double srMult) {
 		var totalPopulation = getTotalPopulation();
-		var pByRel = new TreeMap<Religion, ArrayList<PopulationGroup>>((a, b) -> a.name().compareTo(b.name()));
+		var pByRel = new TreeMap<Religion, ArrayList<PopulationGroup>>(
+				(a, b) -> a.name().compareTo(b.name()));
 		for (var p : population) {
 			Religion r = p.getReligion();
 			if (pByRel.containsKey(r)) {
@@ -126,26 +135,32 @@ public class Location {
 		relByEffPow.addAll(rels);
 		for (int i = 0; i < relEffPow.length; i++) {
 			double mult = stateReligion.contains(rels.get(i)) ? srMult : 1;
-			relEffPow[i] = RelPop[i] * rels.get(i).religionPower() * mult / totalPopulation;
+			relEffPow[i] = RelPop[i] * rels.get(i).religionPower() * mult
+					/ totalPopulation;
 		}
-		relByEffPow.sort((a, b) -> -1 * Double.compare(relEffPow[rels.indexOf(a)], 
+		relByEffPow.sort(
+				(a, b) -> -1 * Double.compare(relEffPow[rels.indexOf(a)],
 						relEffPow[rels.indexOf(b)]));
 		var mainRel = relByEffPow.get(0);
 		var mainRelEffPow = relEffPow[rels.indexOf(mainRel)];
 		for (var p : population) {
 			var rEffPow = relEffPow[rels.indexOf(p.getReligion())];
 			if (p.getReligion() != mainRel && rEffPow < mainRelEffPow) {
-				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / rEffPow));
+				long change = Math.min(p.getSize(),
+						(long) Math.ceil(p.getSize() * rate / rEffPow));
 				p.changeSize(-change);
-				addPopulationGroup(p.getCulture(), p.getLanguage(), p.getReligion(), p.getSpecies(), change);
+				addPopulationGroup(p.getCulture(), p.getLanguage(),
+						p.getReligion(), p.getSpecies(), change);
 			}
 		}
 		population.removeIf(p -> p.getSize() < 1);
+		
 	}
 	
 	public void spreadMainLanguage(double rate, List<Language> officialLanguage, double olMult) {
 		var totalPopulation = getTotalPopulation();
-		var pByLang = new TreeMap<Language, ArrayList<PopulationGroup>>((a, b) -> a.name().compareTo(b.name()));
+		var pByLang = new TreeMap<Language, ArrayList<PopulationGroup>>(
+				(a, b) -> a.name().compareTo(b.name()));
 		for (var p : population) {
 			var c = p.getLanguage();
 			if (pByLang.containsKey(c)) {
@@ -167,19 +182,25 @@ public class Location {
 		var langByEffPow = new ArrayList<Language>(0);
 		langByEffPow.addAll(langs);
 		for (int i = 0; i < langEffPow.length; i++) {
-			double mult = officialLanguage.contains(langs.get(i)) ? olMult : 1;
-			langEffPow[i] = langPop[i] * langs.get(i).languagePower() * mult / totalPopulation;
+			double mult = officialLanguage.contains(langs.get(i))
+					? olMult
+					: 1;
+			langEffPow[i] = langPop[i] * langs.get(i).languagePower() * mult
+					/ totalPopulation;
 		}
-		langByEffPow.sort((a, b) -> -1 * Double.compare(langEffPow[langs.indexOf(a)], 
+		langByEffPow.sort(
+				(a, b) -> -1 * Double.compare(langEffPow[langs.indexOf(a)],
 						langEffPow[langs.indexOf(b)]));
 		var mainLang = langByEffPow.get(0);
 		var mainLangEffPow = langEffPow[langs.indexOf(mainLang)];
 		for (var p : population) {
 			var cEffPow = langEffPow[langs.indexOf(p.getLanguage())];
 			if (p.getLanguage() != mainLang && cEffPow < mainLangEffPow) {
-				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / cEffPow));
+				long change = Math.min(p.getSize(),
+						(long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
-				addPopulationGroup(p.getCulture(), mainLang, p.getReligion(), p.getSpecies(), change);
+				addPopulationGroup(p.getCulture(), mainLang,
+						p.getReligion(), p.getSpecies(), change);
 			}
 		}
 		population.removeIf(p -> p.getSize() < 1);
