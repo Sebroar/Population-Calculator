@@ -87,7 +87,7 @@ public class Location {
 			double mult = primaryCultures.contains(culs.get(i)) ? pcMult : 1;
 			culEffPow[i] = culPop[i] * culs.get(i).culturePower() * mult / totalPopulation;
 		}
-		culByEffPow.sort((a, b) -> Double.compare(culEffPow[culs.indexOf(a)], culEffPow[culs.indexOf(b)]));
+		culByEffPow.sort((a, b) -> -1 * Double.compare(culEffPow[culs.indexOf(a)], culEffPow[culs.indexOf(b)]));
 		var mainCul = culByEffPow.get(0);
 		var mainCulEffPow = culEffPow[culs.indexOf(mainCul)];
 		for (var p : population) {
@@ -96,11 +96,9 @@ public class Location {
 				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
 				addPopulationGroup(mainCul, p.getLanguage(), p.getReligion(), p.getSpecies(), change);
-				if (p.getSize() < 1) {
-					population.remove(p);
-				}
 			}
 		}
+		population.removeIf(p -> p.getSize() < 1);
 	}
 	
 	public void convertPopulation(double rate, List<Religion> stateReligion, double srMult) {
@@ -130,7 +128,7 @@ public class Location {
 			double mult = stateReligion.contains(rels.get(i)) ? srMult : 1;
 			relEffPow[i] = RelPop[i] * rels.get(i).religionPower() * mult / totalPopulation;
 		}
-		relByEffPow.sort((a, b) -> Double.compare(relEffPow[rels.indexOf(a)], 
+		relByEffPow.sort((a, b) -> -1 * Double.compare(relEffPow[rels.indexOf(a)], 
 						relEffPow[rels.indexOf(b)]));
 		var mainRel = relByEffPow.get(0);
 		var mainRelEffPow = relEffPow[rels.indexOf(mainRel)];
@@ -140,11 +138,9 @@ public class Location {
 				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / rEffPow));
 				p.changeSize(-change);
 				addPopulationGroup(p.getCulture(), p.getLanguage(), p.getReligion(), p.getSpecies(), change);
-				if (p.getSize() < 1) {
-					population.remove(p);
-				}
 			}
 		}
+		population.removeIf(p -> p.getSize() < 1);
 	}
 	
 	public void spreadMainLanguage(double rate, List<Language> officialLanguage, double olMult) {
@@ -174,7 +170,7 @@ public class Location {
 			double mult = officialLanguage.contains(langs.get(i)) ? olMult : 1;
 			langEffPow[i] = langPop[i] * langs.get(i).languagePower() * mult / totalPopulation;
 		}
-		langByEffPow.sort((a, b) -> Double.compare(langEffPow[langs.indexOf(a)], 
+		langByEffPow.sort((a, b) -> -1 * Double.compare(langEffPow[langs.indexOf(a)], 
 						langEffPow[langs.indexOf(b)]));
 		var mainLang = langByEffPow.get(0);
 		var mainLangEffPow = langEffPow[langs.indexOf(mainLang)];
@@ -184,10 +180,8 @@ public class Location {
 				long change = Math.min(p.getSize(), (long) Math.ceil(p.getSize() * rate / cEffPow));
 				p.changeSize(-change);
 				addPopulationGroup(p.getCulture(), mainLang, p.getReligion(), p.getSpecies(), change);
-				if (p.getSize() < 1) {
-					population.remove(p);
-				}
 			}
 		}
+		population.removeIf(p -> p.getSize() < 1);
 	}
 }
