@@ -38,6 +38,7 @@ public class PopulationCalculator {
 	public static double primaryCulturePowerMultiplier;
 	public static double languageShiftRate;
 	public static double officialLanguagePowerMultiplier;
+	public static double minorLanguageForgetChance;
 	static ObjectMapper mapper = JsonMapper.builder().configure(JsonReadFeature.ALLOW_JAVA_COMMENTS, true)
 			.configure(JsonReadFeature.ALLOW_SINGLE_QUOTES, true)
 			.configure(JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES, true)
@@ -155,6 +156,8 @@ public class PopulationCalculator {
 							stateReligionPowerMultiplier);
 					l.spreadMainLanguage(languageShiftRate, officialLanguages,
 							officialLanguagePowerMultiplier);
+					l.forgetLanguages(minorLanguageForgetChance, officialLanguages, 
+							officialLanguagePowerMultiplier);
 				}
 			}
 			printLog(LogEntryType.INFO, "Timestep " + t + " was completed");
@@ -205,7 +208,7 @@ public class PopulationCalculator {
 	private static void loadCultures() {
 		cultures.add(Culture.NULL_CULTURE);
 		try {
-			JsonNode arrayNode = mapper.readTree(new File(dir, "cultures.json")).get("cultures");
+			JsonNode arrayNode = mapper.readTree(new File(dir, "input.json")).get("cultures");
 			if (arrayNode.isArray()) {
 				for (JsonNode cul : arrayNode) {
 					Language defLang = Language.NULL_LANGUAGE;
@@ -237,15 +240,15 @@ public class PopulationCalculator {
 							cul.get("culture_power").asDouble(0), defLang, defRel, defSp, add, mult));
 				}
 				cultures.sort((a, b) -> {return a.name().compareTo(b.name());});
-				printLog(LogEntryType.INFO, "cultures.json was loaded successfully");
+				printLog(LogEntryType.INFO, "cultures were loaded successfully");
 			} else {
 				JsonNodeType t = arrayNode.getNodeType();
-				printLog(LogEntryType.WARNING, "Couldn't load cultures.json: " 
+				printLog(LogEntryType.WARNING, "Couldn't load cultures: " 
 						+ t.toString().toLowerCase() + " was found, while array was expected");
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			printLog(LogEntryType.WARNING, "Couldn't load cultures.json");
+			printLog(LogEntryType.WARNING, "Couldn't load cultures");
 			e.printStackTrace(logger);
 			e.printStackTrace();
 			return;
@@ -255,21 +258,21 @@ public class PopulationCalculator {
 	private static void loadLanguages() {
 		languages.add(Language.NULL_LANGUAGE);
 		try {
-			JsonNode arrayNode = mapper.readTree(new File(dir, "languages.json")).get("languages");
+			JsonNode arrayNode = mapper.readTree(new File(dir, "input.json")).get("languages");
 			if (arrayNode.isArray()) {
 				for (JsonNode lang : arrayNode) {
 					languages.add(new Language(lang.get("name").asText(), lang.get("language_power").asDouble()));
 				}
 				languages.sort((a, b) -> {return a.name().compareTo(b.name());});
-				printLog(LogEntryType.INFO, "languages.json was loaded successfully");
+				printLog(LogEntryType.INFO, "languages were loaded successfully");
 			} else {
 				JsonNodeType t = arrayNode.getNodeType();
-				printLog(LogEntryType.WARNING, "Couldn't load languages.json: " 
+				printLog(LogEntryType.WARNING, "Couldn't load languages: " 
 						+ t.toString().toLowerCase() + " was found, while array was expected");
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			printLog(LogEntryType.WARNING, "Couldn't load languages.json");
+			printLog(LogEntryType.WARNING, "Couldn't load languages");
 			e.printStackTrace(logger);
 			e.printStackTrace();
 			return;
@@ -279,7 +282,7 @@ public class PopulationCalculator {
 	private static void loadReligions() {
 		religions.add(Religion.NULL_RELIGION);
 		try {
-			JsonNode arrayNode = mapper.readTree(new File(dir, "religions.json")).get("religions");
+			JsonNode arrayNode = mapper.readTree(new File(dir, "input.json")).get("religions");
 			if (arrayNode.isArray()) {
 				for (JsonNode rel : arrayNode) {
 					double add = rel.has("growth_rate_modifier_additive") ? 
@@ -290,15 +293,15 @@ public class PopulationCalculator {
 							rel.get("religion_power").asDouble(), add, mult));
 				}
 				religions.sort((a, b) -> {return a.name().compareTo(b.name());});
-				printLog(LogEntryType.INFO, "religions.json was loaded successfully");
+				printLog(LogEntryType.INFO, "religions were loaded successfully");
 			} else {
 				JsonNodeType t = arrayNode.getNodeType();
-				printLog(LogEntryType.WARNING, "Couldn't load religions.json: " 
+				printLog(LogEntryType.WARNING, "Couldn't load religions: " 
 						+ t.toString().toLowerCase() + " was found, while array was expected");
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			printLog(LogEntryType.WARNING, "Couldn't load religions.json");
+			printLog(LogEntryType.WARNING, "Couldn't load religions");
 			e.printStackTrace(logger);
 			e.printStackTrace();
 			return;
@@ -308,25 +311,47 @@ public class PopulationCalculator {
 	private static void loadLocations() {
 		locations.add(Location.NULL_LOCATION);
 		try {
-			JsonNode arrayNode = mapper.readTree(new File(dir, "locations.json")).get("locations");
+			JsonNode arrayNode = mapper.readTree(new File(dir, "input.json")).get("locations");
 			if (arrayNode.isArray()) {
 				for (JsonNode loc : arrayNode) {
 					double add = loc.has("growth_rate_modifier_additive") ? 
 							loc.get("growth_rate_modifier_additive").asDouble() : 0;
 					double mult = loc.has("growth_rate_modifier_multiplicative") ?
 							loc.get("growth_rate_modifier_multiplicative").asDouble() : 0;
-					locations.add(new Location(loc.get("name").asText(), add, mult));
+					ArrayList<Language> langs = new ArrayList<Language>(0);
+					if (loc.has("languages")) {
+						if (loc.get("languages").isArray()) {
+							for (JsonNode lNode : loc.get("languages")) {
+								for (Language l : languages) {
+									if (l.name().equals(lNode.asText())) {
+										langs.add(l);
+										break;
+									}
+								}
+							}
+						} else if (loc.get("languages").isTextual()) {
+							for (Language l : languages) {
+								if (l.name().equals(loc.get("languages").asText())) {
+									langs.add(l);
+									break;
+								}
+							}
+						}
+					}
+					double mainLangMult = loc.has("main_language_multiplier") ? 
+							loc.get("main_language_multiplier").asDouble() : 1;
+					locations.add(new Location(loc.get("name").asText(), add, mult, langs, mainLangMult));
 				}
 				locations.sort((a, b) -> {return a.getName().compareTo(b.getName());});
-				printLog(LogEntryType.INFO, "locations.json was loaded successfully");
+				printLog(LogEntryType.INFO, "locations were loaded successfully");
 			} else {
 				JsonNodeType t = arrayNode.getNodeType();
-				printLog(LogEntryType.WARNING, "Couldn't load locations.json: " 
+				printLog(LogEntryType.WARNING, "Couldn't load locations: " 
 						+ t.toString().toLowerCase() + " was found, while array was expected");
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			printLog(LogEntryType.WARNING, "Couldn't load locations.json");
+			printLog(LogEntryType.WARNING, "Couldn't load locations");
 			e.printStackTrace(logger);
 			e.printStackTrace();
 			return;
@@ -336,7 +361,7 @@ public class PopulationCalculator {
 	private static void loadSpecies() {
 		species.add(Species.NULL_SPECIES);
 		try {
-			JsonNode arrayNode = mapper.readTree(new File(dir, "species.json")).get("species");
+			JsonNode arrayNode = mapper.readTree(new File(dir, "input.json")).get("species");
 			if (arrayNode.isArray()) {
 				for (JsonNode sp : arrayNode) {
 					double add = sp.has("growth_rate_modifier_additive") ? 
@@ -346,15 +371,15 @@ public class PopulationCalculator {
 					species.add(new Species(sp.get("name").asText(), add, mult));
 				}
 				species.sort((a, b) -> {return a.name().compareTo(b.name());});
-				printLog(LogEntryType.INFO, "species.json was loaded successfully");
+				printLog(LogEntryType.INFO, "species were loaded successfully");
 			} else {
 				JsonNodeType t = arrayNode.getNodeType();
-				printLog(LogEntryType.WARNING, "Couldn't load species.json: " 
+				printLog(LogEntryType.WARNING, "Couldn't load species: " 
 						+ t.toString().toLowerCase() + " was found, while array was expected");
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			printLog(LogEntryType.WARNING, "Couldn't load species.json");
+			printLog(LogEntryType.WARNING, "Couldn't load species");
 			e.printStackTrace(logger);
 			e.printStackTrace();
 			return;
@@ -479,6 +504,7 @@ public class PopulationCalculator {
 		primaryCulturePowerMultiplier = mapper.readTree(cfg).get("primary_culture_power_multiplier").asDouble();
 		assimilationRate = mapper.readTree(cfg).get("base_assimilation_rate").asDouble() / 100;
 		languageShiftRate = mapper.readTree(cfg).get("base_language_shift_rate").asDouble() / 100;
+		minorLanguageForgetChance = mapper.readTree(cfg).get("minor_language_forget_chance").asDouble() / 100;
 		printLog(LogEntryType.INFO, "config.json was loaded successfully");
 	}
 	

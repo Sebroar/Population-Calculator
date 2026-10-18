@@ -3,21 +3,25 @@ package sebroar.populationcalculator.data;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.TreeMap;
-import sebroar.populationcalculator.PopulationCalculator;
-import sebroar.populationcalculator.PopulationCalculator.LogEntryType;
 
 public class Location {
 	private final String name;
 	private final double growthModifierAdditive;
 	private final double growthModifierMultiplicative;
+	public ArrayList<Language> mainLanguages;
+	public double mainLanguagePowerMultiplier;
 	public ArrayList<PopulationGroup> population = new ArrayList<PopulationGroup>(0);
-	public static final Location NULL_LOCATION = new Location("NULL", 0 , 0);
+	public static final Location NULL_LOCATION = new Location("NULL", 0 , 0, new ArrayList<Language>(0), 1);
 	
-	public Location(String name, double rateModifierAdditive, double rateModifierMultiplicative) {
+	public Location(String name, double rateModifierAdditive, double rateModifierMultiplicative,
+			ArrayList<Language> mainLanguages, double mainLangMult) {
 		this.name = name;
 		this.growthModifierAdditive = rateModifierAdditive;
 		this.growthModifierMultiplicative = rateModifierMultiplicative;
+		this.mainLanguages = mainLanguages;
+		this.mainLanguagePowerMultiplier = mainLangMult;
 	}
 	
 	public String getName() {
@@ -46,7 +50,8 @@ public class Location {
 			Religion religion, Species species) {
 		for (PopulationGroup p : population) {
 			if (p.getCulture() == culture && p.getLanguages().containsAll(languages)
-					&& p.getReligion() == religion && p.getSpecies() == species) {
+					&& languages.containsAll(p.getLanguages())&& p.getReligion() == religion 
+					&& p.getSpecies() == species) {
 				return p;
 			}
 		}
@@ -86,8 +91,7 @@ public class Location {
 	
 	public void assimilatePopulation(double rate, List<Culture> primaryCultures, double pcMult) {
 		var totalPopulation = getTotalPopulation();
-		var pByCul = new TreeMap<Culture, ArrayList<PopulationGroup>>(
-				(a, b) -> a.name().compareTo(b.name()));
+		var pByCul = new TreeMap<Culture, ArrayList<PopulationGroup>>((a, b) -> a.name().compareTo(b.name()));
 		for (var p : population) {
 			Culture c = p.getCulture();
 			if (pByCul.containsKey(c)) {
@@ -193,7 +197,7 @@ public class Location {
 		
 	}
 	
-	public void spreadMainLanguage(double rate, List<Language> officialLanguage, double olMult) {
+	public void spreadMainLanguage(double rate, List<Language> officialLanguages, double olMult) {
 		var totalPopulation = getTotalPopulation();
 		var pByLang = new TreeMap<Language, ArrayList<PopulationGroup>>(
 				(a, b) -> a.name().compareTo(b.name()));
@@ -220,28 +224,38 @@ public class Location {
 		var langByEffPow = new ArrayList<Language>(0);
 		langByEffPow.addAll(langs);
 		for (int i = 0; i < langEffPow.length; i++) {
-			double mult = officialLanguage.contains(langs.get(i)) ? olMult : 1;
+			double mult = officialLanguages.contains(langs.get(i)) ? 
+					olMult : mainLanguages.contains(langs.get(i)) ? mainLanguagePowerMultiplier : 1;
 			langEffPow[i] = langPop[i] * langs.get(i).languagePower() * mult / totalPopulation;
 		}
 		langByEffPow.sort(
 				(a, b) -> -1 * Double.compare(langEffPow[langs.indexOf(a)],
 						langEffPow[langs.indexOf(b)]));
-		var mainLang = langByEffPow.get(0);
-		var mainLangEffPow = langEffPow[langs.indexOf(mainLang)];
+		var mainLangs = new ArrayList<Language>(0);
+		mainLangs.add(langByEffPow.get(0));
+		mainLangs.addAll(mainLangs);
+		mainLangs.addAll(officialLanguages);
+		double[] mainLangEffPow = new double[mainLangs.size()];
+		for (int i = 0; i < mainLangs.size(); i++) {
+			mainLangEffPow[i] = langEffPow[langs.indexOf(mainLangs.get(i))];
+		}
 		var newPops = new ArrayList<PopulationGroup>(0);
+		Random rand = new Random();
 		for (var p : population) {
 			var popLangs = p.getLanguages();
-			if (!popLangs.contains(mainLang)) {
+			if (!popLangs.containsAll(mainLangs)) {
 				double cEffPow = 0;
 				for (Language l : popLangs) {
 					cEffPow = Math.max(langEffPow[langs.indexOf(l)], cEffPow);
 				}
-				if (!p.getLanguages().contains(mainLang) && cEffPow < mainLangEffPow) {
+				if (!popLangs.containsAll(mainLangs) && cEffPow < mainLangEffPow[0]) {
 					long change = Math.min(p.getSize(),
 							(long) Math.ceil(p.getSize() * rate / cEffPow));
 					p.changeSize(-change);
-					ArrayList<Language> newLangs = p.getLanguages();
-					newLangs.add(mainLang);
+					ArrayList<Language> newLangs = popLangs;
+					ArrayList<Language> learnLangs = mainLangs;
+					learnLangs.removeAll(popLangs);
+					newLangs.add(learnLangs.get(rand.nextInt(0, learnLangs.size())));
 					if (findPopulationGroup(p.getCulture(), newLangs,
 								p.getReligion(), p.getSpecies()) != null) {
 						addPopulationGroup(p.getCulture(), newLangs,
@@ -250,6 +264,81 @@ public class Location {
 						newPops.add(new PopulationGroup(this, p.getCulture(), newLangs,
 								p.getReligion(), p.getSpecies(), change));
 					}
+				}
+			}
+		}
+		population.addAll(newPops);
+		population.removeIf(p -> p.getSize() < 1);
+	}
+	
+	public void forgetLanguages(double forgetChance, List<Language> officialLanguages, double olMult) {
+		var totalPopulation = getTotalPopulation();
+		var pByLang = new TreeMap<Language, ArrayList<PopulationGroup>>(
+				(a, b) -> a.name().compareTo(b.name()));
+		for (var p : population) {
+			var popLangs = p.getLanguages();
+			for (Language l : popLangs) {
+				if (pByLang.containsKey(l)) {
+					pByLang.get(l).add(p);
+				} else {
+					pByLang.put(l, new ArrayList<PopulationGroup>(0));
+					pByLang.get(l).add(p);
+				} 
+			}
+		}
+		ArrayList<Language> langs = new ArrayList<Language>(0);
+		var langPop = new long[pByLang.size()];
+		langs.addAll(pByLang.keySet());
+		for (var l : langs) {
+			for (var p : pByLang.get(l)) {
+				langPop[langs.indexOf(l)] = p.getSize();
+			}
+		}
+		var langEffPow = new double[pByLang.size()];
+		var langByEffPow = new ArrayList<Language>(0);
+		langByEffPow.addAll(langs);
+		for (int i = 0; i < langEffPow.length; i++) {
+			double mult = officialLanguages.contains(langs.get(i)) ? 
+					olMult : mainLanguages.contains(langs.get(i)) ? mainLanguagePowerMultiplier : 1;
+			langEffPow[i] = langPop[i] * langs.get(i).languagePower() * mult / totalPopulation;
+		}
+		langByEffPow.sort(
+				(a, b) -> -1 * Double.compare(langEffPow[langs.indexOf(a)],
+						langEffPow[langs.indexOf(b)]));
+		var mainLangs = new ArrayList<Language>(0);
+		mainLangs.add(langByEffPow.get(0));
+		mainLangs.addAll(mainLangs);
+		mainLangs.addAll(officialLanguages);
+		double[] mainLangEffPow = new double[mainLangs.size()];
+		for (int i = 0; i < mainLangs.size(); i++) {
+			mainLangEffPow[i] = langEffPow[langs.indexOf(mainLangs.get(i))];
+		}
+		var newPops = new ArrayList<PopulationGroup>(0);
+		Random rand = new Random();
+		for (var p : population) {
+			var popLangs = p.getLanguages();
+			if (!mainLangs.containsAll(popLangs)) {
+				long change = Math.min(p.getSize(),
+						(long) Math.ceil(p.getSize() * forgetChance * Math.pow(popLangs.size() - 1, 2)));
+				if (change > 0) {
+					p.changeSize(-change);
+					ArrayList<Language> newLangs = new ArrayList<Language>(0);
+					newLangs.addAll(popLangs);
+					ArrayList<Language> forgetLangs = new ArrayList<Language>(
+							0);
+					forgetLangs.addAll(newLangs);
+					forgetLangs.removeAll(mainLangs);
+					var forget = forgetLangs.get(rand.nextInt(0, forgetLangs.size()));
+					newLangs.remove(forget);
+					if (findPopulationGroup(p.getCulture(), newLangs,
+							p.getReligion(), p.getSpecies()) != null) {
+						addPopulationGroup(p.getCulture(), newLangs,
+								p.getReligion(), p.getSpecies(), change);
+					} else {
+						newPops.add(new PopulationGroup(this, p.getCulture(),
+								newLangs, p.getReligion(), p.getSpecies(),
+								change));
+					} 
 				}
 			}
 		}
