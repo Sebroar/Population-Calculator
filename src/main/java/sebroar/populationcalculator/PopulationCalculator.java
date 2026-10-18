@@ -115,7 +115,7 @@ public class PopulationCalculator {
 			printLog(LogEntryType.INFO, "Example files generated, the program will now terminate");
 			return;
 		}
-		
+		long start = System.currentTimeMillis();
 		// Load user-defined data
 		loadLocations();
 		printLog(LogEntryType.INFO, "Loaded " + locations.size() + " locations");
@@ -145,6 +145,7 @@ public class PopulationCalculator {
 		long t = 0;
 		while (t < timesteps) {
 			for (Location l : locations) {
+				l.consolidatePopulation();
 				if (l.population.size() > 0) {
 					printLog(LogEntryType.INFO, "Processing " + l.getName());
 					l.growPopulation(growthRate);
@@ -178,7 +179,7 @@ public class PopulationCalculator {
 			return;
 		}
 		printLog(LogEntryType.INFO, "Printing output to output.csv");
-		out.println("Location,Culture,Religion,Language,Species,Size");
+		out.println("\"Location\",\"Culture\",\"Religion\",\"Language\",\"Species\",\"Size\"");
 		for (Location l : locations) {
 			if (l.population.size() > 0) {
 				for (PopulationGroup pop : l.population) {
@@ -187,16 +188,17 @@ public class PopulationCalculator {
 					for (int i = 0; i < langs.size(); i++) {
 						langNames = i > 0 ? langNames + "," + langs.get(i).name() : langNames + langs.get(i).name();
 					}
-					out.println(l.getName() + "\",\"" + pop.getCulture().name()
+					out.println("\"" + l.getName() + "\",\"" + pop.getCulture().name()
 							+ "\",\"" + pop.getReligion().name() + "\",\""
 							+ langNames + "\",\""
-							+ pop.getSpecies().name() + "\",\"" + pop.getSize());
+							+ pop.getSpecies().name() + "\",\"" + pop.getSize() + "\"");
 				} 
 			}
 		}
 		out.close();
 		printLog(LogEntryType.INFO, "Output printed to output.csv successfully");
-		printLog(LogEntryType.INFO, "Program executed successfully");
+		printLog(LogEntryType.INFO, "Program executed successfully in " 
+					+ (System.currentTimeMillis() - start) + " ms");
 		logger.close();
 	}
 	
@@ -389,17 +391,28 @@ public class PopulationCalculator {
 							break;
 						}
 					}
-					JsonNode langNode = pop.get("Language");
+					JsonNode langNode = pop.get("languages");
 					if (langNode.getNodeType() == JsonNodeType.ARRAY) {
 						for (JsonNode l : langNode) {
 							for (Language language : languages) {
-								if (l.asText() == language.name()) {
+								if (l.asText().equals(language.name())) {
 									lang.add(language);
 								}
 							}
 						}
+					} else if (langNode.getNodeType() == JsonNodeType.STRING) {
+						for (Language language : languages) {
+							if (langNode.asText().equals(language.name())) {
+								lang.add(language);
+							}
+						}
 					}
-					if (lang.size() == 0) lang.add(Language.NULL_LANGUAGE);
+					if (lang.size() == 0) {
+						lang.add(Language.NULL_LANGUAGE);
+						printLog(LogEntryType.WARNING, 
+								"Couldn't find specified language(s) for the population group, "
+								+ "assigning NULL as a default");
+					}
 					for (Species spValue: species) {
 						if (pop.get("species").asText().equals(spValue.name())) {
 							sp = spValue;
@@ -475,7 +488,7 @@ public class PopulationCalculator {
 				+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "] " + e);
 	}
 	
-	enum LogEntryType {
+	public enum LogEntryType {
 		INFO,
 		WARNING,
 		FATAL
